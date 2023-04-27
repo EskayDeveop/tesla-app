@@ -1,0 +1,35 @@
+node{
+  def mavenHome = tool name: 'maven3.9.1'
+  stage ('1.gitclone'){
+  git url : "https://github.com/EskayDeveop/tesla-app"
+  }
+  stage ('2.Build & Test'){
+  sh "${mavenHome}/bin/mvn package"
+  }
+  stage ('2.CodeQuality'){
+  sh "${mavenHome}/bin/mvn sonar:sonar"
+  }
+  stage ('4uploadArtifacts'){
+  sh "${mavenHome}/bin/mvn deploy"
+  }
+  stage('5deploy2uat'){
+  deploy adapters: [tomcat9(credentialsId: 'tomcat2', path: '', url: 'http://44.205.251.31:8080/manager/html')], contextPath: null, war: 'target/*.war'
+  }
+  stage('6Manualapproval'){
+    sh "echo 'ready for review' "
+    timeout(time:5, unit:'HOURS') {
+    input message: 'Application ready for deployment, Please review and approve'
+      }
+  }
+  stage('7deploy2Production'){
+  deploy adapters: [tomcat9(credentialsId: 'tomcat2', path: '', url: 'http://44.205.251.31:8080/manager/html')], contextPath: null, war: 'target/*.war'
+  }
+  stage('8emailNotify'){
+    emailext body: '''Hello Team,
+
+Build is done.
+
+ESKAYCONSULT''', recipientProviders: [developers(), contributor(), upstreamDevelopers()], subject: 'Build Status', to: 'examinationtestmail@gmail.com'
+  }
+  
+}
